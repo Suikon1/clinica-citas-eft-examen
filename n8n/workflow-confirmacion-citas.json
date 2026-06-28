@@ -1,0 +1,463 @@
+{
+    "updatedAt": "2026-06-28T21:56:43.289Z",
+    "createdAt": "2026-06-28T21:56:43.289Z",
+    "id": "XLKRdorQdvYxGtzZ",
+    "name": "EFT - Confirmaci\u00f3n de Citas (Cl\u00ednica Salud Integral)",
+    "description": null,
+    "active": true,
+    "isArchived": false,
+    "nodes": [
+        {
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "cita-confirmacion",
+                "responseMode": "responseNode",
+                "options": {}
+            },
+            "name": "Webhook Cita",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 2,
+            "position": [
+                -40,
+                300
+            ],
+            "id": "ef32b680-cd16-46d0-a092-1a943480a1e1",
+            "webhookId": "4b605773-c93c-414b-986f-f1e8a3fdad02"
+        },
+        {
+            "parameters": {
+                "url": "=http://54.234.31.148:8080/citas/{{ $json.body.ext }}",
+                "options": {}
+            },
+            "name": "API Citas (consulta BD)",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                200,
+                300
+            ],
+            "id": "d58af2c5-8591-4950-b71b-48add26be984"
+        },
+        {
+            "parameters": {
+                "promptType": "define",
+                "text": "={{ 'Genera un recordatorio telef\u00f3nico breve y cordial para esta cita m\u00e9dica. Paciente: ' + $json.nombre + '. Especialidad: ' + $json.especialidad + '. M\u00e9dico: ' + $json.medico + '. Fecha: ' + $json.fecha + '. Hora: ' + $json.hora + '. Incluye que debe presionar 1 para confirmar, 2 cancelar, 3 reprogramar.' }}",
+                "options": {
+                    "systemMessage": "Eres el asistente virtual de la Cl\u00ednica Regional Salud Integral. Redactas recordatorios de citas claros, breves y emp\u00e1ticos, en espa\u00f1ol de Chile. M\u00e1ximo 2 frases."
+                }
+            },
+            "name": "AI Agent",
+            "type": "@n8n/n8n-nodes-langchain.agent",
+            "typeVersion": 1.7,
+            "position": [
+                440,
+                300
+            ],
+            "id": "e5f60db0-c4f9-4215-820c-8df7e75eba49"
+        },
+        {
+            "parameters": {
+                "model": "liquid/lfm-2.5-1.2b-instruct:free",
+                "options": {}
+            },
+            "name": "OpenRouter Chat Model",
+            "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+            "typeVersion": 1,
+            "position": [
+                440,
+                520
+            ],
+            "credentials": {
+                "openRouterApi": {
+                    "id": "RHr67FrACgyHakV5",
+                    "name": "OpenRouter Lab"
+                }
+            },
+            "id": "6b010490-298f-4246-b058-fe47945bf116"
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "http://54.234.31.148:8080/tts",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={{ JSON.stringify({ texto: 'Estimado ' + $('API Citas (consulta BD)').item.json.nombre + '. Le recordamos su cita de ' + $('API Citas (consulta BD)').item.json.especialidad + ' el ' + $('API Citas (consulta BD)').item.json.fecha + ' a las ' + $('API Citas (consulta BD)').item.json.hora + ' horas.' }) }}",
+                "options": {}
+            },
+            "name": "TTS (genera audio)",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                820,
+                300
+            ],
+            "id": "d5453bf3-4510-4fc8-b357-4ffecab87bac"
+        },
+        {
+            "parameters": {
+                "resource": "message",
+                "operation": "post",
+                "select": "channel",
+                "channelId": {
+                    "__rl": true,
+                    "mode": "id",
+                    "value": "C0BBNGC26FR"
+                },
+                "text": "=:hospital: *Recordatorio de cita generado*\n\u2022 Paciente: {{ $('API Citas (consulta BD)').item.json.nombre }}\n\u2022 Especialidad: {{ $('API Citas (consulta BD)').item.json.especialidad }}\n\u2022 Fecha: {{ $('API Citas (consulta BD)').item.json.fecha }} {{ $('API Citas (consulta BD)').item.json.hora }}\n\u2022 Estado: {{ $('API Citas (consulta BD)').item.json.estado }}\n\u2022 Audio TTS: {{ $json.bytes_audio }} bytes ({{ $json.motor }})",
+                "otherOptions": {}
+            },
+            "name": "Slack Notifica Recepci\u00f3n",
+            "type": "n8n-nodes-base.slack",
+            "typeVersion": 2.5,
+            "position": [
+                1180,
+                300
+            ],
+            "credentials": {
+                "slackApi": {
+                    "id": "oRcQAJ7vnUxHor1H",
+                    "name": "Slack Bot Olivaw"
+                }
+            },
+            "id": "1a46b164-7c19-4bea-a448-3c49d60d659f",
+            "webhookId": "5a484eb3-939a-4a80-96ab-0cfc0aa0322b"
+        },
+        {
+            "parameters": {
+                "respondWith": "json",
+                "responseBody": "={{ JSON.stringify({ ok: true, cita: $('API Citas (consulta BD)').item.json, recordatorio: $('AI Agent').item.json.output, tts: { motor: $('TTS (genera audio)').item.json.motor, bytes: $('TTS (genera audio)').item.json.bytes_audio } }) }}",
+                "options": {}
+            },
+            "name": "Respond to Webhook",
+            "type": "n8n-nodes-base.respondToWebhook",
+            "typeVersion": 1.1,
+            "position": [
+                1520,
+                300
+            ],
+            "id": "df346fe2-fcaf-4844-b91f-2983ade2ac7c"
+        }
+    ],
+    "connections": {
+        "Webhook Cita": {
+            "main": [
+                [
+                    {
+                        "node": "API Citas (consulta BD)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "API Citas (consulta BD)": {
+            "main": [
+                [
+                    {
+                        "node": "AI Agent",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "AI Agent": {
+            "main": [
+                [
+                    {
+                        "node": "TTS (genera audio)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "OpenRouter Chat Model": {
+            "ai_languageModel": [
+                [
+                    {
+                        "node": "AI Agent",
+                        "type": "ai_languageModel",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "TTS (genera audio)": {
+            "main": [
+                [
+                    {
+                        "node": "Slack Notifica Recepci\u00f3n",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Slack Notifica Recepci\u00f3n": {
+            "main": [
+                [
+                    {
+                        "node": "Respond to Webhook",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1"
+    },
+    "staticData": null,
+    "meta": null,
+    "nodeGroups": [],
+    "pinData": null,
+    "versionId": "ef3a1772-ede2-470c-a3a3-69ddab8e1a8b",
+    "activeVersionId": "ef3a1772-ede2-470c-a3a3-69ddab8e1a8b",
+    "versionCounter": 1,
+    "triggerCount": 1,
+    "sourceWorkflowId": null,
+    "shared": [
+        {
+            "updatedAt": "2026-06-28T21:56:43.350Z",
+            "createdAt": "2026-06-28T21:56:43.350Z",
+            "role": "workflow:owner",
+            "workflowId": "XLKRdorQdvYxGtzZ",
+            "projectId": "srTALN7vhFOEoyhW",
+            "project": {
+                "updatedAt": "2026-06-21T22:09:24.774Z",
+                "createdAt": "2026-06-21T22:04:48.832Z",
+                "id": "srTALN7vhFOEoyhW",
+                "name": "Amaro Valdebenito <amarovalex23@gmail.com>",
+                "type": "personal",
+                "icon": null,
+                "description": null,
+                "customTelemetryTags": [],
+                "creatorId": "a49b5eb8-9ef9-4166-aa85-3fd78f134991"
+            }
+        }
+    ],
+    "tags": [],
+    "activeVersion": {
+        "updatedAt": "2026-06-28T21:56:43.360Z",
+        "createdAt": "2026-06-28T21:56:43.360Z",
+        "versionId": "ef3a1772-ede2-470c-a3a3-69ddab8e1a8b",
+        "workflowId": "XLKRdorQdvYxGtzZ",
+        "nodes": [
+            {
+                "parameters": {
+                    "httpMethod": "POST",
+                    "path": "cita-confirmacion",
+                    "responseMode": "responseNode",
+                    "options": {}
+                },
+                "name": "Webhook Cita",
+                "type": "n8n-nodes-base.webhook",
+                "typeVersion": 2,
+                "position": [
+                    -40,
+                    300
+                ],
+                "id": "ef32b680-cd16-46d0-a092-1a943480a1e1",
+                "webhookId": "4b605773-c93c-414b-986f-f1e8a3fdad02"
+            },
+            {
+                "parameters": {
+                    "url": "=http://54.234.31.148:8080/citas/{{ $json.body.ext }}",
+                    "options": {}
+                },
+                "name": "API Citas (consulta BD)",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    200,
+                    300
+                ],
+                "id": "d58af2c5-8591-4950-b71b-48add26be984"
+            },
+            {
+                "parameters": {
+                    "promptType": "define",
+                    "text": "={{ 'Genera un recordatorio telef\u00f3nico breve y cordial para esta cita m\u00e9dica. Paciente: ' + $json.nombre + '. Especialidad: ' + $json.especialidad + '. M\u00e9dico: ' + $json.medico + '. Fecha: ' + $json.fecha + '. Hora: ' + $json.hora + '. Incluye que debe presionar 1 para confirmar, 2 cancelar, 3 reprogramar.' }}",
+                    "options": {
+                        "systemMessage": "Eres el asistente virtual de la Cl\u00ednica Regional Salud Integral. Redactas recordatorios de citas claros, breves y emp\u00e1ticos, en espa\u00f1ol de Chile. M\u00e1ximo 2 frases."
+                    }
+                },
+                "name": "AI Agent",
+                "type": "@n8n/n8n-nodes-langchain.agent",
+                "typeVersion": 1.7,
+                "position": [
+                    440,
+                    300
+                ],
+                "id": "e5f60db0-c4f9-4215-820c-8df7e75eba49"
+            },
+            {
+                "parameters": {
+                    "model": "liquid/lfm-2.5-1.2b-instruct:free",
+                    "options": {}
+                },
+                "name": "OpenRouter Chat Model",
+                "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+                "typeVersion": 1,
+                "position": [
+                    440,
+                    520
+                ],
+                "credentials": {
+                    "openRouterApi": {
+                        "id": "RHr67FrACgyHakV5",
+                        "name": "OpenRouter Lab"
+                    }
+                },
+                "id": "6b010490-298f-4246-b058-fe47945bf116"
+            },
+            {
+                "parameters": {
+                    "method": "POST",
+                    "url": "http://54.234.31.148:8080/tts",
+                    "sendBody": true,
+                    "specifyBody": "json",
+                    "jsonBody": "={{ JSON.stringify({ texto: 'Estimado ' + $('API Citas (consulta BD)').item.json.nombre + '. Le recordamos su cita de ' + $('API Citas (consulta BD)').item.json.especialidad + ' el ' + $('API Citas (consulta BD)').item.json.fecha + ' a las ' + $('API Citas (consulta BD)').item.json.hora + ' horas.' }) }}",
+                    "options": {}
+                },
+                "name": "TTS (genera audio)",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    820,
+                    300
+                ],
+                "id": "d5453bf3-4510-4fc8-b357-4ffecab87bac"
+            },
+            {
+                "parameters": {
+                    "resource": "message",
+                    "operation": "post",
+                    "select": "channel",
+                    "channelId": {
+                        "__rl": true,
+                        "mode": "id",
+                        "value": "C0BBNGC26FR"
+                    },
+                    "text": "=:hospital: *Recordatorio de cita generado*\n\u2022 Paciente: {{ $('API Citas (consulta BD)').item.json.nombre }}\n\u2022 Especialidad: {{ $('API Citas (consulta BD)').item.json.especialidad }}\n\u2022 Fecha: {{ $('API Citas (consulta BD)').item.json.fecha }} {{ $('API Citas (consulta BD)').item.json.hora }}\n\u2022 Estado: {{ $('API Citas (consulta BD)').item.json.estado }}\n\u2022 Audio TTS: {{ $json.bytes_audio }} bytes ({{ $json.motor }})",
+                    "otherOptions": {}
+                },
+                "name": "Slack Notifica Recepci\u00f3n",
+                "type": "n8n-nodes-base.slack",
+                "typeVersion": 2.5,
+                "position": [
+                    1180,
+                    300
+                ],
+                "credentials": {
+                    "slackApi": {
+                        "id": "oRcQAJ7vnUxHor1H",
+                        "name": "Slack Bot Olivaw"
+                    }
+                },
+                "id": "1a46b164-7c19-4bea-a448-3c49d60d659f",
+                "webhookId": "5a484eb3-939a-4a80-96ab-0cfc0aa0322b"
+            },
+            {
+                "parameters": {
+                    "respondWith": "json",
+                    "responseBody": "={{ JSON.stringify({ ok: true, cita: $('API Citas (consulta BD)').item.json, recordatorio: $('AI Agent').item.json.output, tts: { motor: $('TTS (genera audio)').item.json.motor, bytes: $('TTS (genera audio)').item.json.bytes_audio } }) }}",
+                    "options": {}
+                },
+                "name": "Respond to Webhook",
+                "type": "n8n-nodes-base.respondToWebhook",
+                "typeVersion": 1.1,
+                "position": [
+                    1520,
+                    300
+                ],
+                "id": "df346fe2-fcaf-4844-b91f-2983ade2ac7c"
+            }
+        ],
+        "connections": {
+            "Webhook Cita": {
+                "main": [
+                    [
+                        {
+                            "node": "API Citas (consulta BD)",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "API Citas (consulta BD)": {
+                "main": [
+                    [
+                        {
+                            "node": "AI Agent",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "AI Agent": {
+                "main": [
+                    [
+                        {
+                            "node": "TTS (genera audio)",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "OpenRouter Chat Model": {
+                "ai_languageModel": [
+                    [
+                        {
+                            "node": "AI Agent",
+                            "type": "ai_languageModel",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "TTS (genera audio)": {
+                "main": [
+                    [
+                        {
+                            "node": "Slack Notifica Recepci\u00f3n",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Slack Notifica Recepci\u00f3n": {
+                "main": [
+                    [
+                        {
+                            "node": "Respond to Webhook",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            }
+        },
+        "nodeGroups": [],
+        "authors": "Amaro Valdebenito",
+        "name": null,
+        "description": null,
+        "autosaved": false,
+        "workflowPublishHistory": [
+            {
+                "createdAt": "2026-06-28T21:56:44.513Z",
+                "id": 11,
+                "workflowId": "XLKRdorQdvYxGtzZ",
+                "versionId": "ef3a1772-ede2-470c-a3a3-69ddab8e1a8b",
+                "event": "activated",
+                "userId": "a49b5eb8-9ef9-4166-aa85-3fd78f134991"
+            }
+        ]
+    }
+}

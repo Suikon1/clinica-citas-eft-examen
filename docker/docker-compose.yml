@@ -1,0 +1,19 @@
+# Orquestación de la solución PBX dockerizada — Clínica "Salud Integral"
+# Levanta la central Asterisk con el AGI de confirmación de citas y la API.
+#   docker compose up -d --build
+services:
+  pbx:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: clinica-pbx:eft
+    container_name: clinica-pbx
+    restart: unless-stopped
+    network_mode: host          # SIP/RTP necesitan rango de puertos completo
+    # Si no se usa host networking, mapear explícitamente:
+    # ports:
+    #   - "5060:5060/udp"
+    #   - "5060:5060/tcp"
+    #   - "5061:5061/tcp"
+    #   - "8080:8080/tcp"
+    #   - "10000-10100:10000-10100/udp"
