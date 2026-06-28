@@ -15,7 +15,7 @@ recepción. Incluye seguridad perimetral (SBC + TLS) y un agente conversacional 
 | **Orquestador** | n8n + OpenRouter (IA) | Webhook → consulta BD → IA → TTS → Slack |
 | **Cloud** | AWS IaaS (us-east-1) | VMs + Security Groups (aislamiento de la PBX) |
 
-Diagrama completo: `../evidencias/ev-arquitectura.png`
+Diagrama completo: `docs/arquitectura.png`
 
 ## Estructura del repositorio
 
@@ -69,6 +69,9 @@ docker exec clinica-pbx asterisk -rx "pjsip show endpoints"
 
 - Los **Security Groups** aíslan la PBX: solo acepta SIP/RTP desde el SBC.
 - Solo el **SBC** se expone a Internet; reenruta a la PBX y oculta su IP privada.
-- La señalización SIP viaja cifrada por **TLS 1.3** (puerto 5061), verificado con `tshark`.
+- La señalización SIP viaja cifrada por **TLS** (puerto 5061, `tls_method TLSv1.2+`; el
+  handshake negocia TLS 1.3 / AES-256-GCM), verificado con `tshark`.
+- La API de citas (`citas_api.py`, puerto 8080) se publica únicamente hacia la IP del orquestador
+  n8n mediante una regla de Security Group dedicada (no es accesible desde Internet abierto).
 
 > Trabajo académico desarrollado sobre infraestructura de laboratorio autorizada (AWS Academy).

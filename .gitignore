@@ -1,4 +1,0 @@
-*.pem
-secrets.env
-__pycache__/
-*.pyc

@@ -151,7 +151,7 @@ def main():
         if menu:
             digito = stream(menu, "123")
         else:
-            agi('STREAM FILE vm-enter-num-to-call "123"')
+            digito = stream("vm-enter-num-to-call", "123")
         if not digito:
             digito = wait_digit(7000)
         intentos += 1
